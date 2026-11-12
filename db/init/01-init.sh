@@ -1,0 +1,12 @@
+set -e
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+  CREATE USER booking WITH PASSWORD '${BOOKING_DB_PASSWORD}';
+  CREATE DATABASE booking OWNER booking;
+  CREATE USER keycloak WITH PASSWORD '${KEYCLOAK_DB_PASSWORD}';
+  CREATE DATABASE keycloak OWNER keycloak;
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname booking <<-EOSQL
+  CREATE EXTENSION IF NOT EXISTS btree_gist;
+EOSQL

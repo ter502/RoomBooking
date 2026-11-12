@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: backend
+  config:
+    import: optional:file:../.env[.properties]
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/booking
+    username: booking
+    password: ${BOOKING_DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  mvc:
+    problemdetails:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+booking:
+  rules:
+    slot-minutes: 15
+    open-time: "08:00"
+    close-time: "20:00"
+    max-duration: 4h
+    max-days-ahead: 60
