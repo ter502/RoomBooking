@@ -9,7 +9,7 @@ public record RoomResponse(
         boolean hasVideo,
         boolean active) {
 
-    static RoomResponse from(Room room) {
+    public static RoomResponse from(Room room) {
         return new RoomResponse(
                 room.getId(), room.getName(), room.getFloor(), room.getCapacity(),
                 room.isHasProjector(), room.isHasVideo(), room.isActive());

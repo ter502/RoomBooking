@@ -1,6 +1,9 @@
 package com.example.booking.reservation;
 
+import com.example.booking.room.Room;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -25,4 +28,35 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                               @Param("expected") BookingStatus expected,
                               @Param("newStatus") BookingStatus newStatus,
                               @Param("now") Instant now);
+
+    @Query("""
+            select b from Booking b
+              join fetch b.user
+             where b.room.id = :roomId
+               and b.status in :statuses
+               and b.startAt < :to
+               and b.endAt > :from
+             order by b.startAt
+            """)
+    List<Booking> findRoomSchedule(@Param("roomId") Long roomId,
+                                   @Param("statuses") Collection<BookingStatus> statuses,
+                                   @Param("from") Instant from,
+                                   @Param("to") Instant to);
+
+    @Query("""
+            select r from Room r
+             where r.active = true
+               and r.capacity >= :capacity
+               and not exists (
+                   select b.id from Booking b
+                    where b.room = r
+                      and b.status in :statuses
+                      and b.startAt < :end
+                      and b.endAt > :start)
+             order by r.name
+            """)
+    List<Room> findAvailableRooms(@Param("capacity") int capacity,
+                                  @Param("statuses") Collection<BookingStatus> statuses,
+                                  @Param("start") Instant start,
+                                  @Param("end") Instant end);
 }

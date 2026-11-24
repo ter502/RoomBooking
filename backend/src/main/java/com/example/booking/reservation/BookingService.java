@@ -4,11 +4,14 @@ import com.example.booking.common.PageResponse;
 import com.example.booking.config.TimeConfig;
 import com.example.booking.room.Room;
 import com.example.booking.room.RoomRepository;
+import com.example.booking.room.RoomResponse;
 import com.example.booking.user.AppUser;
 import com.example.booking.user.CurrentUserService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -98,6 +101,37 @@ public class BookingService {
         return bookingRepository.findById(id)
                 .map(BookingResponse::from)
                 .orElseThrow();
+    }
+
+    @Transactional
+    public List<RoomScheduleItem> roomSchedule(Long roomId, LocalDate date) {
+        if (!roomRepository.existsById(roomId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found");
+        }
+        AppUser user = currentUserService.currentUser();
+        LocalDate day = date != null ? date : LocalDate.now(clock);
+        Instant from = day.atStartOfDay(TimeConfig.ZONE).toInstant();
+        Instant to = day.plusDays(1).atStartOfDay(TimeConfig.ZONE).toInstant();
+
+        return bookingRepository.findRoomSchedule(roomId, BookingStatus.OCCUPYING, from, to)
+                .stream()
+                .map(b -> RoomScheduleItem.from(b, b.getUser().getId().equals(user.getId())))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RoomResponse> availableRooms(OffsetDateTime start, OffsetDateTime end, int capacity) {
+        if (capacity < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "capacity must be at least 1");
+        }
+        Instant s = start.toInstant();
+        Instant e = end.toInstant();
+        bookingRules.validate(s, e);
+
+        return bookingRepository.findAvailableRooms(capacity, BookingStatus.OCCUPYING, s, e)
+                .stream()
+                .map(RoomResponse::from)
+                .toList();
     }
 
     private Booking findOwnBooking(Long id) {
