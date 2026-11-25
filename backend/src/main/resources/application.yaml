@@ -14,6 +14,23 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: booking-backend
+            client-secret: ${BOOKING_CLIENT_SECRET:}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid, profile, email
+        provider:
+          keycloak:
+            authorization-uri: http://localhost:8180/realms/booking/protocol/openid-connect/auth
+            token-uri: http://localhost:8180/realms/booking/protocol/openid-connect/token
+            jwk-set-uri: http://localhost:8180/realms/booking/protocol/openid-connect/certs
+            user-info-uri: http://localhost:8180/realms/booking/protocol/openid-connect/userinfo
+            user-name-attribute: sub
 
 management:
   endpoints:
@@ -28,3 +45,8 @@ booking:
     close-time: "20:00"
     max-duration: 4h
     max-days-ahead: 60
+
+springdoc:
+  swagger-ui:
+    csrf:
+      enabled: true
