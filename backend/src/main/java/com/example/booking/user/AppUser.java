@@ -39,8 +39,13 @@ public class AppUser {
     }
 
     @PrePersist
-    void onCreate() {
+    void onCreate() {                                    
         this.createdAt = Instant.now();
+    }
+
+    public void updateProfile(String email, String displayName) {
+        this.email = email;
+        this.displayName = displayName;
     }
 
     public Long getId() { return id; }

@@ -10,6 +10,7 @@ import com.example.booking.room.Room;
 import com.example.booking.room.RoomRepository;
 import com.example.booking.user.CurrentUserService;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -30,6 +31,14 @@ import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
@@ -52,7 +61,8 @@ class BookingIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // 先建立開發用使用者，避免並發測試時多個執行緒同時去建立它
+        loginAs("test-user-sub", "tester@example.com", "Test User");
+        // 先建立測試使用者，避免並發測試時多個執行緒同時去建立它
         currentUserService.currentUser();
         room = roomRepository.save(new Room(
                 "IT-" + UUID.randomUUID().toString().substring(0, 8), "9F", 6, false, false));
@@ -64,6 +74,22 @@ class BookingIntegrationTest {
     void tearDown() {
         bookingRepository.deleteAllInBatch();
         roomRepository.deleteAllInBatch();
+        SecurityContextHolder.clearContext();
+    }
+
+    private static void loginAs(String sub, String email, String name) {
+        OidcIdToken idToken = OidcIdToken.withTokenValue("test-token")
+                .subject(sub)
+                .claim("email", email)
+                .claim("name", name)
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(300))
+                .build();
+        OidcUser user = new DefaultOidcUser(List.of(new SimpleGrantedAuthority("OIDC_USER")), idToken);
+
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new OAuth2AuthenticationToken(user, user.getAuthorities(), "keycloak"));
+        SecurityContextHolder.setContext(context);
     }
 
     private BookingRequest request(String title, int startHour, int startMinute,
@@ -110,7 +136,9 @@ class BookingIntegrationTest {
     @Test
     void concurrentBookingsForSameSlotAllowOnlyOne() throws Exception {
         int threads = 10;
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        // 把目前的登入資料一併傳給每個執行緒
+        ExecutorService executor = new DelegatingSecurityContextExecutorService(
+                Executors.newFixedThreadPool(threads), SecurityContextHolder.getContext());
         CountDownLatch startGate = new CountDownLatch(1);
         List<Future<Boolean>> results = new ArrayList<>();
 
